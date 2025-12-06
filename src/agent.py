@@ -3,31 +3,31 @@ import logging
 from dotenv import load_dotenv
 from livekit import rtc
 from livekit.agents import (
-    Agent,
+    # Agent,
     AgentServer,
-    AgentSession,
+    # AgentSession,
     JobContext,
-    JobProcess,
+    # JobProcess,
     cli,
-    inference,
+    # inference,
     room_io,
 )
-from livekit.plugins import noise_cancellation, silero
-from livekit.plugins.turn_detector.multilingual import MultilingualModel
+# from livekit.plugins import noise_cancellation, silero
+# from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 logger = logging.getLogger("agent")
 
 load_dotenv(".env.local")
 
 
-class Assistant(Agent):
-    def __init__(self) -> None:
-        super().__init__(
-            instructions="""You are a helpful voice AI assistant. The user is interacting with you via voice, even if you perceive the conversation as text.
-            You eagerly assist users with their questions by providing information from your extensive knowledge.
-            Your responses are concise, to the point, and without any complex formatting or punctuation including emojis, asterisks, or other symbols.
-            You are curious, friendly, and have a sense of humor.""",
-        )
+# class Assistant(Agent):
+#     def __init__(self) -> None:
+#         super().__init__(
+#             instructions="""You are a helpful voice AI assistant. The user is interacting with you via voice, even if you perceive the conversation as text.
+#             You eagerly assist users with their questions by providing information from your extensive knowledge.
+#             Your responses are concise, to the point, and without any complex formatting or punctuation including emojis, asterisks, or other symbols.
+#             You are curious, friendly, and have a sense of humor.""",
+#         )
 
     # To add tools, use the @function_tool decorator.
     # Here's an example that adds a simple weather tool.
@@ -50,11 +50,13 @@ class Assistant(Agent):
 server = AgentServer()
 
 
+"""
 def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
 
 
 server.setup_fnc = prewarm
+"""
 
 
 @server.rtc_session()
@@ -65,6 +67,7 @@ async def my_agent(ctx: JobContext):
         "room": ctx.room.name,
     }
 
+    """
     # Set up a voice AI pipeline using OpenAI, Cartesia, AssemblyAI, and the LiveKit turn detector
     session = AgentSession(
         # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
@@ -117,6 +120,7 @@ async def my_agent(ctx: JobContext):
             ),
         ),
     )
+    """
 
     # Join the room and connect to the user
     await ctx.connect()
