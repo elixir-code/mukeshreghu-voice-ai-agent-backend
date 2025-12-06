@@ -1,19 +1,11 @@
 import logging
 
 from dotenv import load_dotenv
-from livekit import rtc
 from livekit.agents import (
-    # Agent,
     AgentServer,
-    # AgentSession,
     JobContext,
-    # JobProcess,
     cli,
-    # inference,
-    room_io,
 )
-# from livekit.plugins import noise_cancellation, silero
-# from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 logger = logging.getLogger("agent")
 
