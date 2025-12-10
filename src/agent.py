@@ -1,54 +1,60 @@
 import logging
 
 from dotenv import load_dotenv
+from livekit import rtc
 from livekit.agents import (
+    Agent,
     AgentServer,
+    AgentSession,
     JobContext,
+    JobProcess,
     cli,
+    inference,
+    room_io,
 )
+from livekit.plugins import noise_cancellation, silero
+from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 logger = logging.getLogger("agent")
 
 load_dotenv(".env.local")
 
 
-# class Assistant(Agent):
-#     def __init__(self) -> None:
-#         super().__init__(
-#             instructions="""You are a helpful voice AI assistant. The user is interacting with you via voice, even if you perceive the conversation as text.
-#             You eagerly assist users with their questions by providing information from your extensive knowledge.
-#             Your responses are concise, to the point, and without any complex formatting or punctuation including emojis, asterisks, or other symbols.
-#             You are curious, friendly, and have a sense of humor.""",
-#         )
+class Assistant(Agent):
+    def __init__(self) -> None:
+        super().__init__(
+            instructions="""You are a helpful voice AI assistant. The user is interacting with you via voice, even if you perceive the conversation as text.
+            You eagerly assist users with their questions by providing information from your extensive knowledge.
+            Your responses are concise, to the point, and without any complex formatting or punctuation including emojis, asterisks, or other symbols.
+            You are curious, friendly, and have a sense of humor.""",
+        )
 
-# To add tools, use the @function_tool decorator.
-# Here's an example that adds a simple weather tool.
-# You also have to add `from livekit.agents import function_tool, RunContext` to the top of this file
-# @function_tool
-# async def lookup_weather(self, context: RunContext, location: str):
-#     """Use this tool to look up current weather information in the given location.
-#
-#     If the location is not supported by the weather service, the tool will indicate this. You must tell the user the location's weather is unavailable.
-#
-#     Args:
-#         location: The location to look up weather information for (e.g. city name)
-#     """
-#
-#     logger.info(f"Looking up weather for {location}")
-#
-#     return "sunny with a temperature of 70 degrees."
+    # To add tools, use the @function_tool decorator.
+    # Here's an example that adds a simple weather tool.
+    # You also have to add `from livekit.agents import function_tool, RunContext` to the top of this file
+    # @function_tool
+    # async def lookup_weather(self, context: RunContext, location: str):
+    #     """Use this tool to look up current weather information in the given location.
+    #
+    #     If the location is not supported by the weather service, the tool will indicate this. You must tell the user the location's weather is unavailable.
+    #
+    #     Args:
+    #         location: The location to look up weather information for (e.g. city name)
+    #     """
+    #
+    #     logger.info(f"Looking up weather for {location}")
+    #
+    #     return "sunny with a temperature of 70 degrees."
 
 
 server = AgentServer()
 
 
-"""
 def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
 
 
 server.setup_fnc = prewarm
-"""
 
 
 @server.rtc_session()
@@ -59,7 +65,6 @@ async def my_agent(ctx: JobContext):
         "room": ctx.room.name,
     }
 
-    """
     # Set up a voice AI pipeline using OpenAI, Cartesia, AssemblyAI, and the LiveKit turn detector
     session = AgentSession(
         # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
@@ -67,11 +72,11 @@ async def my_agent(ctx: JobContext):
         stt=inference.STT(model="assemblyai/universal-streaming", language="en"),
         # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
         # See all available models at https://docs.livekit.io/agents/models/llm/
-        llm=inference.LLM(model="openai/gpt-4.1-mini"),
+        llm=inference.LLM(model="openai/gpt-5-nano"),
         # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
         # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
         tts=inference.TTS(
-            model="cartesia/sonic-3", voice="9626c31c-bec5-4cca-baa8-f8ba9e84c8bc"
+            model="inworld/inworld-tts-1", voice="Dennis", language="en"
         ),
         # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
         # See more at https://docs.livekit.io/agents/build/turns
@@ -112,7 +117,6 @@ async def my_agent(ctx: JobContext):
             ),
         ),
     )
-    """
 
     # Join the room and connect to the user
     await ctx.connect()
