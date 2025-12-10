@@ -75,9 +75,7 @@ async def my_agent(ctx: JobContext):
         llm=inference.LLM(model="openai/gpt-5-nano"),
         # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
         # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
-        tts=inference.TTS(
-            model="inworld/inworld-tts-1", voice="Dennis", language="en"
-        ),
+        tts=inference.TTS(model="inworld/inworld-tts-1", voice="Dennis", language="en"),
         # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
         # See more at https://docs.livekit.io/agents/build/turns
         turn_detection=MultilingualModel(),
