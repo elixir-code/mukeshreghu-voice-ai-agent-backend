@@ -70,7 +70,7 @@ async def my_agent(ctx: JobContext):
         # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
         # See all available models at https://docs.livekit.io/agents/models/stt/
         # stt=inference.STT(model="assemblyai/universal-streaming", language="en"),
-        stt=assemblyai.STT(model="universal-streaming", language="en"),
+        stt=assemblyai.STT(model="universal-streaming"),
         
         # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
         # See all available models at https://docs.livekit.io/agents/models/llm/
