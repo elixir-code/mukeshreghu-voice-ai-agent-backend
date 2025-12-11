@@ -12,8 +12,7 @@ from livekit.agents import (
     inference,
     room_io,
 )
-# from livekit.plugins import noise_cancellation, silero
-from livekit.plugins import silero
+from livekit.plugins import assemblyai, inworld, noise_cancellation, openai, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 logger = logging.getLogger("agent")
@@ -70,13 +69,21 @@ async def my_agent(ctx: JobContext):
     session = AgentSession(
         # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
         # See all available models at https://docs.livekit.io/agents/models/stt/
-        stt=inference.STT(model="assemblyai/universal-streaming", api_key=os.getenv("ASSEMBLYAI_API_KEY"), language="en"),
+        # stt=inference.STT(model="assemblyai/universal-streaming", language="en"),
+        stt=assemblyai.STT(model="universal-streaming", language="en"),
+        
         # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
         # See all available models at https://docs.livekit.io/agents/models/llm/
-        llm=inference.LLM(model="openai/gpt-5-nano"),
+        # llm=inference.LLM(model="openai/gpt-4.1-mini"),
+        llm=openai.LLM(model="gpt-5-nano"),
+        
         # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
         # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
-        tts=inference.TTS(model="inworld/inworld-tts-1", voice="Dennis", language="en"),
+        # tts=inference.TTS(
+        #     model="cartesia/sonic-3", voice="9626c31c-bec5-4cca-baa8-f8ba9e84c8bc"
+        # ),
+        tts=inworld.TTS(model="inworld-tts-1", voice="Dennis", language="en"),
+
         # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
         # See more at https://docs.livekit.io/agents/build/turns
         turn_detection=MultilingualModel(),
@@ -110,7 +117,9 @@ async def my_agent(ctx: JobContext):
         room=ctx.room,
         room_options=room_io.RoomOptions(
             audio_input=room_io.AudioInputOptions(
-                noise_cancellation=None
+                noise_cancellation=lambda params: noise_cancellation.BVCTelephony()
+                if params.participant.kind == rtc.ParticipantKind.PARTICIPANT_KIND_SIP
+                else noise_cancellation.BVC(),
             ),
         ),
     )
