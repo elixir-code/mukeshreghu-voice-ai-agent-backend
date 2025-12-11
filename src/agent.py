@@ -82,7 +82,7 @@ async def my_agent(ctx: JobContext):
         # tts=inference.TTS(
         #     model="cartesia/sonic-3", voice="9626c31c-bec5-4cca-baa8-f8ba9e84c8bc"
         # ),
-        tts=inworld.TTS(model="inworld-tts-1", voice="Dennis", language="en"),
+        tts=inworld.TTS(model="inworld-tts-1", voice="Dennis"),
 
         # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
         # See more at https://docs.livekit.io/agents/build/turns
