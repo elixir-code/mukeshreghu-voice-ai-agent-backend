@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from dotenv import load_dotenv
@@ -181,10 +182,11 @@ async def my_agent(ctx: JobContext):
 
     # Attach STT lifecycle hooks if supported by plugin
     if hasattr(session.stt, "on"):
-        session.stt.on("start", on_stt_start)
-        session.stt.on("error", on_stt_error)
-        session.stt.on("reconnect", on_stt_reconnect)
-        session.stt.on("close", on_stt_close)
+        session.stt.on("start", stt_start_wrapper)
+        session.stt.on("error", stt_error_wrapper)
+        session.stt.on("reconnect", stt_reconnect_wrapper)
+        session.stt.on("close", stt_close_wrapper)
+
 
     # To use a realtime model instead of a voice pipeline, use the following session setup instead.
     # (Note: This is for the OpenAI Realtime API. For other providers, see https://docs.livekit.io/agents/models/realtime/))
