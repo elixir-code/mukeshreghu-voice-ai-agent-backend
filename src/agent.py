@@ -89,6 +89,19 @@ async def on_stt_close():
     logger.info("[STT CLOSED] STT websocket closed")
 
 
+def stt_start_wrapper(*args, **kwargs):
+    asyncio.create_task(on_stt_start())
+
+def stt_error_wrapper(err, *args, **kwargs):
+    asyncio.create_task(on_stt_error(err))
+
+def stt_reconnect_wrapper(attempt, delay, *args, **kwargs):
+    asyncio.create_task(on_stt_reconnect(attempt, delay))
+
+def stt_close_wrapper(*args, **kwargs):
+    asyncio.create_task(on_stt_close())
+
+
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(
