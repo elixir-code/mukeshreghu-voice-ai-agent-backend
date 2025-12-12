@@ -14,9 +14,79 @@ from livekit.agents import (
 from livekit.plugins import assemblyai, inworld, openai, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
+# Root logger
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+
+# Increase verbosity of LiveKit Agents
+logging.getLogger("livekit").setLevel(logging.DEBUG)
+logging.getLogger("livekit.rtc").setLevel(logging.DEBUG)
+logging.getLogger("livekit.agents").setLevel(logging.DEBUG)
+
+# STT-specific logs
+logging.getLogger("livekit.agents.stt").setLevel(logging.DEBUG)
+logging.getLogger("livekit.plugins.assemblyai").setLevel(logging.DEBUG)
+
+# Audio pipeline debugging
+logging.getLogger("livekit.audio").setLevel(logging.DEBUG)
+
+# Websocket/HTTP layer
+logging.getLogger("aiohttp").setLevel(logging.DEBUG)
+logging.getLogger("websockets").setLevel(logging.DEBUG)
+
 logger = logging.getLogger("agent")
+logger.setLevel(logging.DEBUG)
 
 load_dotenv(".env.local")
+
+
+# Room + Track events
+async def on_track_subscribed(participant, track):
+    logger.debug(
+        f"[TRACK SUBSCRIBED] participant={participant.identity}, "
+        f"track={track.sid}, kind={track.kind}"
+    )
+
+async def on_track_unsubscribed(participant, track):
+    logger.warning(
+        f"[TRACK UNSUBSCRIBED] participant={participant.identity}, "
+        f"track={track.sid}, kind={track.kind}"
+    )
+
+async def on_participant_joined(participant):
+    logger.debug(f"[PARTICIPANT JOINED] {participant.identity}")
+
+async def on_participant_left(participant):
+    logger.debug(f"[PARTICIPANT LEFT] {participant.identity}")
+
+# Audio frame debugging
+async def on_audio_frame(frame):
+    logger.debug(
+        f"[AUDIO FRAME] ts={frame.timestamp}, samples={len(frame.data)}, "
+        f"sample_rate={frame.sample_rate}"
+    )
+
+# Agent session lifecycle
+async def on_session_start(session: AgentSession):
+    logger.info(f"[SESSION START] job={session.job.id}, room={session.room.name}")
+
+async def on_session_end(session: AgentSession):
+    logger.info(f"[SESSION END] job={session.job.id}, room={session.room.name}")
+
+# STT lifecycle debugging
+async def on_stt_start():
+    logger.info("[STT START] Opening realtime websocket to AssemblyAI")
+
+async def on_stt_error(err):
+    logger.error(f"[STT ERROR] {err}")
+
+async def on_stt_reconnect(attempt, delay):
+    logger.warning(f"[STT RECONNECT] attempt={attempt}, retry_in={delay}s")
+
+async def on_stt_close():
+    logger.info("[STT CLOSED] STT websocket closed")
 
 
 class Assistant(Agent):
@@ -69,7 +139,7 @@ async def my_agent(ctx: JobContext):
         # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
         # See all available models at https://docs.livekit.io/agents/models/stt/
         # stt=inference.STT(model="assemblyai/universal-streaming", language="en"),
-        stt=assemblyai.STT(model="universal-streaming"),
+        stt=assemblyai.STT(model="universal-streaming", debug=True),
         
         # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
         # See all available models at https://docs.livekit.io/agents/models/llm/
@@ -92,6 +162,17 @@ async def my_agent(ctx: JobContext):
         preemptive_generation=True,
     )
 
+    # Attach agent session hooks
+    session.on_session_start = on_session_start
+    session.on_session_end = on_session_end
+
+    # Attach STT lifecycle hooks if supported by plugin
+    if hasattr(session.stt, "on"):
+        session.stt.on("start", on_stt_start)
+        session.stt.on("error", on_stt_error)
+        session.stt.on("reconnect", on_stt_reconnect)
+        session.stt.on("close", on_stt_close)
+
     # To use a realtime model instead of a voice pipeline, use the following session setup instead.
     # (Note: This is for the OpenAI Realtime API. For other providers, see https://docs.livekit.io/agents/models/realtime/))
     # 1. Install livekit-agents[openai]
@@ -111,7 +192,7 @@ async def my_agent(ctx: JobContext):
     # await avatar.start(session, room=ctx.room)
 
     # Start the session, which initializes the voice pipeline and warms up the models
-    await session.start(
+    io = await session.start(
         agent=Assistant(),
         room=ctx.room,
         room_options=room_io.RoomOptions(
@@ -120,6 +201,15 @@ async def my_agent(ctx: JobContext):
             ),
         ),
     )
+
+    # -----------------------
+    # ATTACH ROOM EVENT HOOKS
+    # -----------------------
+    io.on("track_subscribed", on_track_subscribed)
+    io.on("track_unsubscribed", on_track_unsubscribed)
+    io.on("participant_joined", on_participant_joined)
+    io.on("participant_left", on_participant_left)
+    io.on("audio_frame", on_audio_frame)
 
     # Join the room and connect to the user
     await ctx.connect()
