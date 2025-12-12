@@ -217,14 +217,41 @@ async def my_agent(ctx: JobContext):
         ),
     )
 
-    # -----------------------
-    # ATTACH ROOM EVENT HOOKS
-    # -----------------------
-    io.on("track_subscribed", on_track_subscribed)
-    io.on("track_unsubscribed", on_track_unsubscribed)
-    io.on("participant_joined", on_participant_joined)
-    io.on("participant_left", on_participant_left)
-    io.on("audio_frame", on_audio_frame)
+    # Helper: attempt to extract RoomIO from session attributes
+    def get_session_io(sess):
+        for attr in ["io", "room_io", "_io", "roomIO"]:
+            val = getattr(sess, attr, None)
+            if val is not None:
+                return val
+        return None
+
+    # If session.start() returned None — very common — poll for it
+    if io is None:
+        logger.debug("session.start returned None — polling session for RoomIO")
+        for attempt in range(10):  # try for ~2 seconds
+            io = get_session_io(session)
+            if io is not None:
+                logger.debug(f"RoomIO became available on attempt {attempt+1}")
+                break
+            await asyncio.sleep(0.2)
+
+    # If STILL None → log and skip room hooks (but do NOT crash)
+    if io is None:
+        logger.error(
+            "RoomIO is still None. Cannot attach audio/track hooks. "
+            "This usually indicates a LiveKit plugin or session.start change."
+        )
+    else:
+        # Safe to attach event hooks now
+        try:
+            io.on("track_subscribed", on_track_subscribed)
+            io.on("track_unsubscribed", on_track_unsubscribed)
+            io.on("participant_joined", on_participant_joined)
+            io.on("participant_left", on_participant_left)
+            io.on("audio_frame", on_audio_frame)
+            logger.debug("RoomIO event hooks attached successfully.")
+        except Exception as e:
+            logger.exception("Failed to attach RoomIO hooks: %s", e)
 
     # Join the room and connect to the user
     await ctx.connect()
