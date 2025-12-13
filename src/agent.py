@@ -51,10 +51,6 @@ class UserData:
     expense: Optional[float] = None
     checked_out: Optional[bool] = None
 
-    # NEW
-    confirmed_fields: set[str] = field(default_factory=set)
-    finalized: bool = False
-
     agents: dict[str, Agent] = field(default_factory=dict)
     prev_agent: Optional[Agent] = None
 
@@ -93,8 +89,7 @@ async def update_name(
     Confirm the spelling with the user before calling the function."""
     userdata = context.userdata
     userdata.customer_name = name
-    userdata.confirmed_fields.add("customer_name")
-    return f"Got it. Name saved as {name}."
+    return f"The name is updated to {name}"
 
 
 @function_tool()
@@ -106,8 +101,7 @@ async def update_phone(
     Confirm the spelling with the user before calling the function."""
     userdata = context.userdata
     userdata.customer_phone = phone
-    userdata.confirmed_fields.add("customer_phone")
-    return f"Got it. The phone number is saved as {phone}."
+    return f"The phone number is updated to {phone}"
 
 
 @function_tool()
@@ -136,11 +130,21 @@ class BaseAgent(Agent):
             chat_ctx.items.extend(items_copy)
 
         # add an instructions including the user data as assistant message
-        if not userdata.confirmed_fields:
-            chat_ctx.add_message(
-                role="system",
-                content="Ask only one missing detail at a time. Be concise."
-            )
+        
+        
+
+        chat_ctx.add_message(
+            role="system",  # role=system works for OpenAI's LLM and Realtime API
+            content=f"""You are {agent_name} agent. Current user data is {userdata.summarize()}.
+Conversation style:
+- Be natural and conversational
+- Ask for information gradually
+- Do not ask for all details at once. You may group closely related details together (for example date and time).
+- Do not repeat or summarize information already given
+- Avoid unnecessary confirmations
+- Keep responses short
+- Once intent is clear, hand off promptly""",
+        )
         await self.update_chat_ctx(chat_ctx)
         self.session.generate_reply(tool_choice="none")
 
@@ -155,24 +159,12 @@ class BaseAgent(Agent):
 
 class Greeter(BaseAgent):
     def __init__(self, menu: str) -> None:
-
-        instructions = (
-            f"You are a friendly restaurant receptionist. The menu is: {menu}\n"
-            "Your jobs are to greet the caller and understand if they want to "
-            "make a reservation or order takeaway. Guide them to the right agent using tools."
-        )
-
-        instructions += (
-            "\nRules:\n"
-            "- Do NOT repeat questions already answered\n"
-            "- Confirm information only once\n"
-            "- Ask only ONE question per turn\n"
-            "- Move forward immediately after confirmation\n"
-            "- Keep replies under 10 words unless necessary"
-        )
-
         super().__init__(
-            instructions=instructions,
+            instructions=(
+                f"You are a friendly restaurant receptionist. The menu is: {menu}\n"
+                "Your jobs are to greet the caller and understand if they want to "
+                "make a reservation or order takeaway. Guide them to the right agent using tools."
+            ),
             llm=openai.LLM(model="gpt-5-nano", parallel_tool_calls=False),
             tts=inworld.TTS(model="inworld-tts-1", voice=voices["greeter"], text_normalization="ON"),
         )
@@ -196,26 +188,10 @@ class Greeter(BaseAgent):
 
 class Reservation(BaseAgent):
     def __init__(self) -> None:
-        instructions = (
-            "You are a reservation agent.\n"
-            "- Ask ONLY for missing information\n"
-            "- Ask ONE question per turn\n"
-            "- Never repeat confirmed details\n"
-            "- Do NOT summarize unless final\n"
-            "- Be brief"
-        )
-
-        instructions += (
-            "\nRules:\n"
-            "- Do NOT repeat questions already answered\n"
-            "- Confirm information only once\n"
-            "- Ask only ONE question per turn\n"
-            "- Move forward immediately after confirmation\n"
-            "- Keep replies under 10 words unless necessary"
-        )
-
         super().__init__(
-            instructions=instructions,
+            instructions="You are a reservation agent at a restaurant. Your jobs are to ask for "
+            "the reservation time, then customer's name, and phone number. Then "
+            "confirm the reservation details with the customer.",
             tools=[update_name, update_phone, to_greeter],
             tts=inworld.TTS(model="inworld-tts-1", voice=voices["reservation"], text_normalization="ON"),
         )
@@ -230,26 +206,7 @@ class Reservation(BaseAgent):
         Confirm the time with the user before calling the function."""
         userdata = context.userdata
         userdata.reservation_time = time
-        userdata.confirmed_fields.add("reservation_time")
-        return f"Got it. The reservation time is saved as {time}."
-    
-    async def on_enter(self) -> None:
-        userdata = self.session.userdata
-
-        if "reservation_time" not in userdata.confirmed_fields:
-            await self.session.say("What time would you like the reservation?")
-            return
-
-        if "customer_name" not in userdata.confirmed_fields:
-            await self.session.say("May I have your name?")
-            return
-
-        if "customer_phone" not in userdata.confirmed_fields:
-            await self.session.say("Your phone number, please.")
-            return
-
-        await self.session.say("Your reservation is confirmed. See you soon.")
-        await self._transfer_to_agent("greeter", RunContext(self.session))
+        return f"The reservation time is updated to {time}"
 
     @function_tool()
     async def confirm_reservation(self, context: RunContext_T) -> str | tuple[Agent, str]:
@@ -266,24 +223,12 @@ class Reservation(BaseAgent):
 
 class Takeaway(BaseAgent):
     def __init__(self, menu: str) -> None:
-
-        instructions = (
-            f"Your are a takeaway agent that takes orders from the customer. "
-            f"Our menu is: {menu}\n"
-            "Clarify special requests and confirm the order with the customer."
-        )
-
-        instructions += (
-            "\nRules:\n"
-            "- Do NOT repeat questions already answered\n"
-            "- Confirm information only once\n"
-            "- Ask only ONE question per turn\n"
-            "- Move forward immediately after confirmation\n"
-            "- Keep replies under 10 words unless necessary"
-        )
-        
         super().__init__(
-            instructions=instructions,
+            instructions=(
+                f"Your are a takeaway agent that takes orders from the customer. "
+                f"Our menu is: {menu}\n"
+                "Clarify special requests and confirm the order with the customer."
+            ),
             tools=[to_greeter],
             tts=inworld.TTS(model="inworld-tts-1", voice=voices["takeaway"], text_normalization="ON"),
         )
@@ -297,8 +242,7 @@ class Takeaway(BaseAgent):
         """Called when the user create or update their order."""
         userdata = context.userdata
         userdata.order = items
-        userdata.confirmed_fields.add("order")
-        return f"Got it. The order is saved as {items}."
+        return f"The order is updated to {items}"
 
     @function_tool()
     async def to_checkout(self, context: RunContext_T) -> str | tuple[Agent, str]:
@@ -312,61 +256,16 @@ class Takeaway(BaseAgent):
 
 class Checkout(BaseAgent):
     def __init__(self, menu: str) -> None:
-
-        instructions = (
-            f"You are a checkout agent at a restaurant. The menu is: {menu}\n"
-            "Your are responsible for confirming the expense of the "
-            "order and then collecting customer's name, phone number and credit card "
-            "information, including the card number, expiry date, and CVV step by step."
-        )
-
-        instructions += (
-            "\nRules:\n"
-            "- Do NOT repeat questions already answered\n"
-            "- Confirm information only once\n"
-            "- Ask only ONE question per turn\n"
-            "- Move forward immediately after confirmation\n"
-            "- Keep replies under 10 words unless necessary"
-        )
-
         super().__init__(
-            instructions=instructions,
+            instructions=(
+                f"You are a checkout agent at a restaurant. The menu is: {menu}\n"
+                "Your are responsible for confirming the expense of the "
+                "order and then collecting customer's name, phone number and credit card "
+                "information, including the card number, expiry date, and CVV step by step."
+            ),
             tools=[update_name, update_phone, to_greeter],
             tts=inworld.TTS(model="inworld-tts-1", voice=voices["checkout"], text_normalization="ON"),
         )
-
-
-    async def on_enter(self) -> None:
-        u = self.session.userdata
-
-        if u.expense is None:
-            await self.session.say("The total is $15. Shall I proceed?")
-            return
-
-        if "customer_name" not in u.confirmed_fields:
-            await self.session.say("Name on the card?")
-            return
-
-        if "customer_phone" not in u.confirmed_fields:
-            await self.session.say("Phone number?")
-            return
-
-        if not u.customer_credit_card:
-            await self.session.say("Please tell your card number.")
-            return
-
-        if not u.customer_credit_card_expiry:
-            await self.session.say("Expiry date?")
-            return
-
-        if not u.customer_credit_card_cvv:
-            await self.session.say("CVV?")
-            return
-
-        u.finalized = True
-        await self.session.say("Payment complete. Thank you. Goodbye.")
-        await self.session.end()
-
 
     @function_tool()
     async def confirm_expense(
@@ -393,8 +292,7 @@ class Checkout(BaseAgent):
         userdata.customer_credit_card = number
         userdata.customer_credit_card_expiry = expiry
         userdata.customer_credit_card_cvv = cvv
-        userdata.confirmed_fields.update({"customer_credit_card", "customer_credit_card_expiry", "customer_credit_card_cvv"})
-        return f"Got it. The credit card number is saved as {number}."
+        return f"The credit card number is updated to {number}"
 
     @function_tool()
     async def confirm_checkout(self, context: RunContext_T) -> str | tuple[Agent, str]:
@@ -449,11 +347,6 @@ async def entrypoint(ctx: JobContext):
         agent=userdata.agents["greeter"],
         room=ctx.room,
     )
-
-    while not userdata.finalized:
-        await asyncio.sleep(0.1)
-
-    await session.end()
 
     # await agent.say("Welcome to our restaurant! How may I assist you today?")
 
