@@ -155,7 +155,7 @@ class Greeter(BaseAgent):
                 "make a reservation or order takeaway. Guide them to the right agent using tools."
             ),
             llm=openai.LLM(model="gpt-5-nano", parallel_tool_calls=False),
-            tts=inworld.TTS(model="inworld-tts-1", voice=voices["greeter"]),
+            tts=inworld.TTS(model="inworld-tts-1", voice=voices["greeter"], text_normalization="ON"),
         )
         self.menu = menu
 
@@ -182,7 +182,7 @@ class Reservation(BaseAgent):
             "the reservation time, then customer's name, and phone number. Then "
             "confirm the reservation details with the customer.",
             tools=[update_name, update_phone, to_greeter],
-            tts=inworld.TTS(model="inworld-tts-1", voice=voices["reservation"]),
+            tts=inworld.TTS(model="inworld-tts-1", voice=voices["reservation"], text_normalization="ON"),
         )
 
     @function_tool()
@@ -219,7 +219,7 @@ class Takeaway(BaseAgent):
                 "Clarify special requests and confirm the order with the customer."
             ),
             tools=[to_greeter],
-            tts=inworld.TTS(model="inworld-tts-1", voice=voices["takeaway"]),
+            tts=inworld.TTS(model="inworld-tts-1", voice=voices["takeaway"], text_normalization="ON"),
         )
 
     @function_tool()
@@ -253,7 +253,7 @@ class Checkout(BaseAgent):
                 "information, including the card number, expiry date, and CVV step by step."
             ),
             tools=[update_name, update_phone, to_greeter],
-            tts=inworld.TTS(model="inworld-tts-1", voice=voices["checkout"]),
+            tts=inworld.TTS(model="inworld-tts-1", voice=voices["checkout"], text_normalization="ON"),
         )
 
     @function_tool()
@@ -325,7 +325,7 @@ async def entrypoint(ctx: JobContext):
         userdata=userdata,
         stt=assemblyai.STT(model="universal-streaming-english"),
         llm=openai.LLM(model="gpt-5-nano"),
-        tts=inworld.TTS(model="inworld-tts-1", voice="Dennis"),
+        tts=inworld.TTS(model="inworld-tts-1", voice="Dennis", text_normalization="ON"),
         vad=silero.VAD.load(),
         max_tool_steps=5,
         # to use realtime model, replace the stt, llm, tts and vad with the following
