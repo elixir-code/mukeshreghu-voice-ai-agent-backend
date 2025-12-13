@@ -237,18 +237,18 @@ class Reservation(BaseAgent):
         userdata = self.session.userdata
 
         if "reservation_time" not in userdata.confirmed_fields:
-            await self.say("What time would you like the reservation?")
+            await self.session.say("What time would you like the reservation?")
             return
 
         if "customer_name" not in userdata.confirmed_fields:
-            await self.say("May I have your name?")
+            await self.session.say("May I have your name?")
             return
 
         if "customer_phone" not in userdata.confirmed_fields:
-            await self.say("Your phone number, please.")
+            await self.session.say("Your phone number, please.")
             return
 
-        await self.say("Your reservation is confirmed. See you soon.")
+        await self.session.say("Your reservation is confirmed. See you soon.")
         await self._transfer_to_agent("greeter", RunContext(self.session))
 
     @function_tool()
@@ -340,31 +340,31 @@ class Checkout(BaseAgent):
         u = self.session.userdata
 
         if u.expense is None:
-            await self.say("The total is $15. Shall I proceed?")
+            await self.session.say("The total is $15. Shall I proceed?")
             return
 
         if "customer_name" not in u.confirmed_fields:
-            await self.say("Name on the card?")
+            await self.session.say("Name on the card?")
             return
 
         if "customer_phone" not in u.confirmed_fields:
-            await self.say("Phone number?")
+            await self.session.say("Phone number?")
             return
 
         if not u.customer_credit_card:
-            await self.say("Please tell your card number.")
+            await self.session.say("Please tell your card number.")
             return
 
         if not u.customer_credit_card_expiry:
-            await self.say("Expiry date?")
+            await self.session.say("Expiry date?")
             return
 
         if not u.customer_credit_card_cvv:
-            await self.say("CVV?")
+            await self.session.say("CVV?")
             return
 
         u.finalized = True
-        await self.say("Payment complete. Thank you. Goodbye.")
+        await self.session.say("Payment complete. Thank you. Goodbye.")
         await self.session.end()
 
 
