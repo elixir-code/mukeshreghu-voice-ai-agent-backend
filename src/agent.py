@@ -195,7 +195,7 @@ class Reservation(BaseAgent):
             instructions="You are a reservation agent at a restaurant. Your jobs are to ask for "
             "the reservation time, then customer's name, and phone number. Then "
             "confirm the reservation details with the customer.",
-            tools=[update_name, update_phone, to_greeter],
+            tools=[update_name, update_phone, to_greeter, self.update_reservation_time, self.confirm_reservation],
             tts=inworld.TTS(model="inworld-tts-1", voice=voices["reservation"], text_normalization="ON"),
         )
 
