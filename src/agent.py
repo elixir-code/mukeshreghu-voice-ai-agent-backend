@@ -179,7 +179,7 @@ class Greeter(BaseAgent):
                 "- 'Connecting you to our reservation desk now.'\n"
                 "- 'Transferring you to takeaway ordering.'"
             ),
-            llm=openai.LLM(model="gpt-5-nano", parallel_tool_calls=False),
+            llm=openai.LLM(model="gpt-5-mini", parallel_tool_calls=False),
             tts=inworld.TTS(model="inworld-tts-1", voice=voices["greeter"], text_normalization="ON"),
         )
         self.menu = menu
@@ -358,7 +358,7 @@ async def entrypoint(ctx: JobContext):
     session = AgentSession[UserData](
         userdata=userdata,
         stt=assemblyai.STT(model="universal-streaming-english"),
-        llm=openai.LLM(model="gpt-5-nano"),
+        llm=openai.LLM(model="gpt-5-mini"),
         tts=inworld.TTS(model="inworld-tts-1", voice="Dennis", text_normalization="ON"),
         vad=silero.VAD.load(),
         max_tool_steps=5,
