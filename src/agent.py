@@ -23,7 +23,7 @@ from livekit.plugins import assemblyai, openai, inworld, silero
 
 
 logger = logging.getLogger("restaurant-example")
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 load_dotenv()
 
@@ -89,6 +89,7 @@ async def update_name(
     Confirm the spelling with the user before calling the function."""
     userdata = context.userdata
     userdata.customer_name = name
+    logger.debug(f"The name is updated to {name}.")
     return f"The name is updated to {name}"
 
 
@@ -101,6 +102,7 @@ async def update_phone(
     Confirm the spelling with the user before calling the function."""
     userdata = context.userdata
     userdata.customer_phone = phone
+    logger.debug(f"The phone number is updated to {phone}.")
     return f"The phone number is updated to {phone}"
 
 
@@ -130,8 +132,7 @@ class BaseAgent(Agent):
             chat_ctx.items.extend(items_copy)
 
         # add an instructions including the user data as assistant message
-        
-        
+        logger.debug(f"After entering task {agent_name}, user data summary: {userdata.summarize()}")
 
         chat_ctx.add_message(
             role="system",  # role=system works for OpenAI's LLM and Realtime API
@@ -145,6 +146,8 @@ Conversation style:
 - Keep responses short
 - Once intent is clear, hand off promptly""",
         )
+
+        logger.debug(f"Updating chat context for agent {agent_name} to {chat_ctx}")
         await self.update_chat_ctx(chat_ctx)
         self.session.generate_reply(tool_choice="none")
 
@@ -206,17 +209,22 @@ class Reservation(BaseAgent):
         Confirm the time with the user before calling the function."""
         userdata = context.userdata
         userdata.reservation_time = time
+        logger.debug(f"The reservation time is updated to {time}.")
         return f"The reservation time is updated to {time}"
 
     @function_tool()
     async def confirm_reservation(self, context: RunContext_T) -> str | tuple[Agent, str]:
         """Called when the user confirms the reservation."""
         userdata = context.userdata
-        if not userdata.customer_name or not userdata.customer_phone:
-            return "Please provide your name and phone number first."
+
+        if not userdata.customer_name:
+            return "Please provide your name."
+        
+        if not userdata.customer_phone:
+            return "Please provide your phone number."
 
         if not userdata.reservation_time:
-            return "Please provide reservation time first."
+            return "Please provide reservation time."
 
         return await self._transfer_to_agent("greeter", context)
 
@@ -242,6 +250,7 @@ class Takeaway(BaseAgent):
         """Called when the user create or update their order."""
         userdata = context.userdata
         userdata.order = items
+        logger.debug(f"The order is updated to {items}.")
         return f"The order is updated to {items}"
 
     @function_tool()
@@ -276,6 +285,7 @@ class Checkout(BaseAgent):
         """Called when the user confirms the expense."""
         userdata = context.userdata
         userdata.expense = expense
+        logger.debug(f"The expense is confirmed to be {expense}.")
         return f"The expense is confirmed to be {expense}"
 
     @function_tool()
@@ -292,6 +302,7 @@ class Checkout(BaseAgent):
         userdata.customer_credit_card = number
         userdata.customer_credit_card_expiry = expiry
         userdata.customer_credit_card_cvv = cvv
+        logger.debug(f"The credit card details are updated as number: {number}, expiry: {expiry}, CVV: {cvv}.")
         return f"The credit card number is updated to {number}"
 
     @function_tool()
@@ -309,6 +320,7 @@ class Checkout(BaseAgent):
             return "Please provide the credit card information first."
 
         userdata.checked_out = True
+        logger.debug("Customer has confirmed checkout.")
         return await to_greeter(context)
 
     @function_tool()
